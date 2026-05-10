@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>DC-AR | 내 방 위의 AI 데이터센터</title>
+
+  <!-- A-Frame + AR.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/aframe/1.4.2/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js@3.4.5/aframe/build/aframe-ar.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Rajdhani:wght@400;600;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #000;
+      font-family: 'Rajdhani', sans-serif;
+      overflow: hidden;
+      color: #fff;
+    }
+
+    /* ── 시작 화면 ── */
+    #splash {
+      position: fixed; inset: 0;
+      background: linear-gradient(135deg, #020818 0%, #041430 50%, #020c24 100%);
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      z-index: 999;
+      transition: opacity 0.6s ease;
+    }
+    #splash.hidden { opacity: 0; pointer-events: none; }
+
+    .splash-grid {
+      position: absolute; inset: 0;
+      background-image:
+        linear-gradient(rgba(0,180,216,0.07) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,180,216,0.07) 1px, transparent 1px);
+      background-size: 40px 40px;
+      animation: gridMove 8s linear infinite;
+    }
+    @keyframes gridMove {
+      from { background-position: 0 0; }
+      to   { background-position: 40px 40px; }
+    }
+
+    .splash-logo {
+      font-family: 'Space Mono', monospace;
+      font-size: clamp(3rem, 12vw, 5.5rem);
+      font-weight: 700;
+      letter-spacing: -2px;
+      background: linear-gradient(135deg, #00b4d8, #0077b6, #90e0ef);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      position: relative; z-index: 1;
+      text-shadow: none;
+      animation: logoGlow 3s ease-in-out infinite alternate;
+    }
+    @keyframes logoGlow {
+      from { filter: drop-shadow(0 0 20px rgba(0,180,216,0.4)); }
+      to   { filter: drop-shadow(0 0 40px rgba(0,180,216,0.8)); }
+    }
+
+    .splash-sub {
+      font-size: clamp(0.9rem, 3vw, 1.1rem);
+      color: #90e0ef;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-top: 8px;
+      position: relative; z-index: 1;
+    }
+
+    .splash-desc {
+      margin-top: 32px;
+      font-size: 1rem;
+      color: #adb5bd;
+      text-align: center;
+      line-height: 1.8;
+      max-width: 300px;
+      position: relative; z-index: 1;
+    }
+
+    .marker-box {
+      margin: 32px auto 0;
+      width: 140px; height: 140px;
+      border: 3px solid #00b4d8;
+      border-radius: 4px;
+      position: relative; z-index: 1;
+      display: flex; align-items: center; justify-content: center;
+      animation: markerPulse 2s ease-in-out infinite;
+      overflow: hidden;
+    }
+    .marker-box::before, .marker-box::after {
+      content: '';
+      position: absolute;
+      width: 20px; height: 20px;
+      border-color: #00b4d8;
+      border-style: solid;
+    }
+    .marker-box::before { top: -3px; left: -3px; border-width: 3px 0 0 3px; }
+    .marker-box::after  { bottom: -3px; right: -3px; border-width: 0 3px 3px 0; }
+    @keyframes markerPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(0,180,216,0.4); }
+      50%       { box-shadow: 0 0 0 12px rgba(0,180,216,0); }
+    }
+
+    /* HIRO 마커 (내장 SVG) */
+    .hiro-marker {
+      width: 100px; height: 100px;
+      background: #fff;
+      display: flex; align-items: center; justify-content: center;
+      position: relative;
+    }
+    .hiro-inner {
+      width: 60px; height: 60px;
+      background: #000;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .hiro-cross {
+      width: 30px; height: 30px;
+      background: #fff;
+      clip-path: polygon(40% 0%, 60% 0%, 60% 40%, 100% 40%, 100% 60%, 60% 60%, 60% 100%, 40% 100%, 40% 60%, 0% 60%, 0% 40%, 40% 40%);
+    }
+
+    .marker-label {
+      margin-top: 10px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      color: #00b4d8;
+      letter-spacing: 2px;
+      text-align: center;
+      position: relative; z-index: 1;
+    }
+
+    .start-btn {
+      margin-top: 32px;
+      padding: 14px 48px;
+      background: transparent;
+      border: 2px solid #00b4d8;
+      color: #00b4d8;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 1.1rem;
+      font-weight: 700;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      cursor: pointer;
+      position: relative; z-index: 1;
+      transition: all 0.3s ease;
+      clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+    }
+    .start-btn:hover {
+      background: #00b4d8;
+      color: #000;
+      box-shadow: 0 0 30px rgba(0,180,216,0.6);
+    }
+
+    /* ── AR 오버레이 UI ── */
+    #ar-ui {
+      position: fixed; inset: 0;
+      pointer-events: none;
+      z-index: 100;
+      display: none;
+    }
+    #ar-ui.active { display: block; }
+
+    /* 상단 HUD */
+    .hud-top {
+      position: absolute; top: 0; left: 0; right: 0;
+      padding: 16px 20px;
+      background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 100%);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .hud-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.75rem;
+      color: #00b4d8;
+      letter-spacing: 3px;
+    }
+    .hud-status {
+      display: flex; align-items: center; gap: 8px;
+      font-size: 0.7rem;
+      color: #90e0ef;
+      letter-spacing: 1px;
+    }
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: #00ff88;
+      animation: blink 1.5s ease-in-out infinite;
+    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+    /* 마커 스캔 안내 */
+    #scan-guide {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      pointer-events: none;
+    }
+    .scan-frame {
+      width: 200px; height: 200px;
+      border: 2px solid rgba(0,180,216,0.6);
+      border-radius: 8px;
+      position: relative;
+      margin: 0 auto 16px;
+      animation: scanPulse 2s ease-in-out infinite;
+    }
+    .scan-frame::before, .scan-frame::after {
+      content: '';
+      position: absolute;
+      width: 30px; height: 30px;
+      border-color: #00b4d8;
+      border-style: solid;
+    }
+    .scan-frame::before { top: -2px; left: -2px; border-width: 2px 0 0 2px; border-radius: 4px 0 0 0; }
+    .scan-frame::after  { bottom: -2px; right: -2px; border-width: 0 2px 2px 0; border-radius: 0 0 4px 0; }
+    .scan-line {
+      position: absolute;
+      left: 4px; right: 4px;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, #00b4d8, transparent);
+      animation: scanLine 2s ease-in-out infinite;
+    }
+    @keyframes scanLine {
+      0%   { top: 4px; opacity: 0; }
+      10%  { opacity: 1; }
+      90%  { opacity: 1; }
+      100% { top: calc(100% - 6px); opacity: 0; }
+    }
+    @keyframes scanPulse {
+      0%,100% { box-shadow: 0 0 0 0 rgba(0,180,216,0.3); }
+      50%      { box-shadow: 0 0 20px 4px rgba(0,180,216,0.1); }
+    }
+    .scan-text {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      color: #90e0ef;
+      letter-spacing: 2px;
+      animation: textFade 2s ease-in-out infinite;
+    }
+    @keyframes textFade { 0%,100%{opacity:1} 50%{opacity:0.5} }
+
+    /* 하단 인터랙션 버튼 */
+    .hud-bottom {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      padding: 20px;
+      background: linear-gradient(0deg, rgba(0,0,0,0.8) 0%, transparent 100%);
+      pointer-events: all;
+    }
+    .btn-group {
+      display: flex; gap: 10px; justify-content: center;
+      flex-wrap: wrap;
+    }
+    .ar-btn {
+      padding: 10px 18px;
+      background: rgba(0,0,0,0.6);
+      border: 1.5px solid rgba(0,180,216,0.6);
+      color: #90e0ef;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 0.85rem;
+      font-weight: 600;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: all 0.25s ease;
+      backdrop-filter: blur(8px);
+    }
+    .ar-btn:hover, .ar-btn.active {
+      background: rgba(0,180,216,0.2);
+      border-color: #00b4d8;
+      color: #00b4d8;
+      box-shadow: 0 0 16px rgba(0,180,216,0.4);
+    }
+    .ar-btn .btn-icon { margin-right: 6px; }
+
+    /* 팝업 패널 */
+    #info-panel {
+      position: absolute; bottom: 110px; left: 16px; right: 16px;
+      background: rgba(2, 8, 24, 0.92);
+      border: 1px solid rgba(0,180,216,0.4);
+      border-radius: 4px;
+      padding: 16px 20px;
+      backdrop-filter: blur(12px);
+      pointer-events: all;
+      transform: translateY(20px);
+      opacity: 0;
+      transition: all 0.3s ease;
+      display: none;
+    }
+    #info-panel.show {
+      display: block;
+      transform: translateY(0);
+      opacity: 1;
+    }
+    .panel-tag {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.6rem;
+      color: #00b4d8;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      margin-bottom: 6px;
+    }
+    .panel-title {
+      font-size: 1.2rem;
+      font-weight: 700;
+      color: #fff;
+      margin-bottom: 8px;
+    }
+    .panel-desc {
+      font-size: 0.9rem;
+      color: #adb5bd;
+      line-height: 1.6;
+    }
+    .panel-close {
+      position: absolute; top: 12px; right: 12px;
+      background: none; border: none;
+      color: #00b4d8; cursor: pointer;
+      font-size: 1.1rem;
+      font-family: 'Space Mono', monospace;
+    }
+
+    /* 좌상단 정보 버튼 */
+    .info-fab {
+      position: absolute; top: 60px; right: 16px;
+      width: 40px; height: 40px;
+      border-radius: 50%;
+      background: rgba(0,0,0,0.6);
+      border: 1.5px solid rgba(0,180,216,0.5);
+      color: #00b4d8;
+      font-family: 'Space Mono', monospace;
+      font-size: 1rem;
+      cursor: pointer;
+      pointer-events: all;
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(8px);
+      transition: all 0.25s;
+    }
+    .info-fab:hover { background: rgba(0,180,216,0.2); box-shadow: 0 0 16px rgba(0,180,216,0.4); }
+
+    /* 온도 HUD */
+    #temp-hud {
+      position: absolute; top: 60px; left: 16px;
+      background: rgba(2,8,24,0.85);
+      border: 1px solid rgba(0,180,216,0.3);
+      border-radius: 4px;
+      padding: 10px 14px;
+      pointer-events: none;
+      display: none;
+      backdrop-filter: blur(8px);
+    }
+    #temp-hud.show { display: block; }
+    .temp-label { font-family: 'Space Mono', monospace; font-size: 0.55rem; color: #00b4d8; letter-spacing: 2px; }
+    .temp-val { font-family: 'Space Mono', monospace; font-size: 1.3rem; font-weight: 700; color: #fff; }
+    .temp-bar-wrap { width: 100px; height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px; margin-top: 4px; }
+    .temp-bar { height: 100%; border-radius: 2px; background: linear-gradient(90deg, #00b4d8, #ff6b35); transition: width 0.5s ease; }
+
+    /* AI 학습 진행 */
+    #ai-hud {
+      position: absolute; top: 60px; left: 16px;
+      background: rgba(2,8,24,0.9);
+      border: 1px solid rgba(0,180,216,0.3);
+      border-radius: 4px;
+      padding: 12px 16px;
+      pointer-events: none;
+      display: none;
+      min-width: 180px;
+      backdrop-filter: blur(8px);
+    }
+    #ai-hud.show { display: block; }
+    .ai-label { font-family: 'Space Mono', monospace; font-size: 0.55rem; color: #00b4d8; letter-spacing: 2px; margin-bottom: 8px; }
+    .ai-step {
+      display: flex; align-items: center; gap: 8px;
+      padding: 4px 0;
+      font-size: 0.8rem;
+      color: #555;
+      transition: color 0.3s;
+    }
+    .ai-step.active { color: #00b4d8; }
+    .ai-step.done   { color: #00ff88; }
+    .step-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+
+    /* 토스트 메시지 */
+    #toast {
+      position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,180,216,0.15);
+      border: 1px solid rgba(0,180,216,0.5);
+      color: #00b4d8;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      letter-spacing: 2px;
+      padding: 8px 20px;
+      border-radius: 2px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      white-space: nowrap;
+    }
+    #toast.show { opacity: 1; }
+
+    /* 마커 다운로드 안내 */
+    #marker-info {
+      position: fixed; bottom: 20px; right: 20px;
+      background: rgba(2,8,24,0.9);
+      border: 1px solid rgba(0,180,216,0.3);
+      border-radius: 4px;
+      padding: 12px 16px;
+      font-size: 0.75rem;
+      color: #90e0ef;
+      z-index: 200;
+      max-width: 200px;
+      display: none;
+    }
+    #marker-info.show { display: block; }
+    #marker-info a { color: #00b4d8; }
+  </style>
+</head>
+<body>
+
+<!-- ── 시작 화면 ── -->
+<div id="splash">
+  <div class="splash-grid"></div>
+  <div class="splash-logo">DC-AR</div>
+  <div class="splash-sub">내 방 위의 AI 데이터센터</div>
+  <p class="splash-desc">
+    HIRO 마커를 카메라에 비추면<br>
+    미니 AI 데이터센터가 소환됩니다
+  </p>
+
+  <div class="marker-box">
+    <div class="hiro-marker">
+      <div class="hiro-inner">
+        <div class="hiro-cross"></div>
+      </div>
+    </div>
+  </div>
+  <div class="marker-label">▲ HIRO MARKER — 이 패턴을 출력하세요</div>
+
+  <button class="start-btn" onclick="startAR()">▶ AR 시작</button>
+</div>
+
+<!-- ── AR.js 씬 ── -->
+<a-scene
+  id="ar-scene"
+  embedded
+  arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono_and_matrix; matrixCodeType: 3x3;"
+  vr-mode-ui="enabled: false"
+  renderer="logarithmicDepthBuffer: true; antialias: true;"
+  style="display:none; position:fixed; inset:0; z-index:50;"
+>
+  <a-assets>
+    <!-- 서버 랙 색상 정의용 -->
+  </a-assets>
+
+  <!-- HIRO 마커 위에 데이터센터 배치 -->
+  <a-marker preset="hiro" id="main-marker" smooth="true" smoothCount="10">
+
+    <!-- ── 바닥 플레이트 ── -->
+    <a-box
+      id="floor"
+      position="0 -0.02 0"
+      width="3.2" height="0.04" depth="2.2"
+      color="#051428"
+      opacity="0.95"
+    ></a-box>
+    <!-- 바닥 그리드 라인 -->
+    <a-plane
+      position="0 0.001 0"
+      rotation="-90 0 0"
+      width="3.2" height="2.2"
+      color="#001f3f"
+      opacity="0.8"
+      side="double"
+    ></a-plane>
+
+    <!-- ── 서버 랙 1 ── -->
+    <a-entity id="rack1" position="-1.1 0 -0.6">
+      <!-- 본체 -->
+      <a-box width="0.35" height="0.9" depth="0.55" color="#0a1628" opacity="1"></a-box>
+      <!-- 전면 패널 -->
+      <a-box position="0 0 0.28" width="0.33" height="0.88" depth="0.02" color="#0d1f38"></a-box>
+      <!-- LED 줄 (위→아래 5개) -->
+      <a-box position="0 0.3 0.295"  width="0.25" height="0.03" depth="0.01" color="#00b4d8" animation="property: material.opacity; from: 1; to: 0.2; dur: 800; loop: true; dir: alternate"></a-box>
+      <a-box position="0 0.18 0.295" width="0.25" height="0.03" depth="0.01" color="#00ff88" animation="property: material.opacity; from: 0.2; to: 1; dur: 600; loop: true; dir: alternate"></a-box>
+      <a-box position="0 0.06 0.295" width="0.25" height="0.03" depth="0.01" color="#00b4d8" animation="property: material.opacity; from: 1; to: 0.3; dur: 1000; loop: true; dir: alternate"></a-box>
+      <a-box position="0 -0.06 0.295" width="0.25" height="0.03" depth="0.01" color="#ff6b35" animation="property: material.opacity; from: 0.5; to: 1; dur: 700; loop: true; dir: alternate"></a-box>
+      <a-box position="0 -0.18 0.295" width="0.25" height="0.03" depth="0.01" color="#00b4d8" animation="property: material.opacity; from: 0.3; to: 1; dur: 900; loop: true; dir: alternate"></a-box>
+      <!-- 상단 표시등 -->
+      <a-sphere position="-0.1 0.47 0.295" radius="0.025" color="#00ff88" animation="property: material.emissiveIntensity; from: 0.5; to: 2; dur: 1000; loop: true; dir: alternate" material="emissive: #00ff88;"></a-sphere>
+      <a-sphere position="0 0.47 0.295" radius="0.025" color="#00b4d8" animation="property: material.emissiveIntensity; from: 0.5; to: 2; dur: 700; loop: true; dir: alternate" material="emissive: #00b4d8;"></a-sphere>
+    </a-entity>
+
+    <!-- ── 서버 랙 2 ── -->
+    <a-entity id="rack2" position="-0.65 0 -0.6">
+      <a-box width="0.35" height="0.9" depth="0.55" color="#0a1628"></a-box>
+      <a-box position="0 0 0.28" width="0.33" height="0.88" depth="0.02" color="#0d1f38"></a-box>
+      <a-box position="0 0.3 0.295"  width="0.25" height="0.03" depth="0.01" color="#00ff88" animation="property: material.opacity; from: 0.3; to: 1; dur: 500; loop: true; dir: alternate"></a-box>
+      <a-box position="0 0.18 0.295" width="0.25" height="0.03" depth="0.01" color="#00b4d8" animation="property: material.opacity; from: 1; to: 0.2; dur: 900; loop: true; dir: alternate"></a-box>
+      <a-box position="0 0.06 0.295" width="0.25" height="0.03" depth="0.01" color="#00ff88" animation="property: material.opacity; from: 0.4; to: 1; dur: 650; loop: true; dir: alternate"></a-box>
+      <a-box position="0 -0.06 0.295" width="0.25" height="0.03" depth="0.01" color="#00b4d8" animation="property: material.opacity; from: 1; to: 0.3; dur: 800; loop: true; dir: alternate"></a-box>
+      <a-sphere position="-0.1 0.47 0.295" radius="0.025" color="#ff6b35" material="emissive: #ff6b35;" animation="property: material.emissiveIntensity; from: 0.5; to: 2; dur: 800; loop: true; dir: alternate"></a-sphere>
+    </a-entity>
+
+    <!-- ── 서버 랙 3 ── -->
+    <a-entity id="rack3" position="-0.2 0 -0.6">
+      <a-box width="0.35" height="0.9" depth="0.55" color="#0a1628"></a-box>
+      <a-box position="0 0 0.28" width="0.33" height="0.88" depth="0.02" color="#0d1f38"></a-box>
+      <a-box position="0 0.25 0.295" width="0.25" height="0.04" depth="0.01" color="#00b4d8" animation="property: material.opacity; from: 1; to: 0.1; dur: 400; loop: true; dir: alternate"></a-box>
+      <a-box position="0 0.1 0.295" width="0.25" height="0.04" depth="0.01" color="#00ff88" animation="property: material.opacity; from: 0.5; to: 1; dur: 750; loop: true; dir: alternate"></a-box>
+      <a-box position="0 -0.05 0.295" width="0.25" height="0.04" depth="0.01" color="#00b4d8" animation="property: material.opacity; from: 0.2; to: 1; dur: 1100; loop: true; dir: alternate"></a-box>
+      <a-sphere position="0.1 0.47 0.295" radius="0.025" color="#00ff88" material="emissive: #00ff88;" animation="property: material.emissiveIntensity; from: 0.5; to: 2; dur: 600; loop: true; dir: alternate"></a-sphere>
+    </a-entity>
+
+    <!-- ── 냉각 유닛 (쿨링팬 2개) ── -->
+    <a-entity position="0.4 0 -0.55">
+      <!-- 냉각 하우징 -->
+      <a-box width="0.6" height="0.8" depth="0.5" color="#081220" opacity="0.95"></a-box>
+      <a-box position="0 0 0.26" width="0.58" height="0.78" depth="0.02" color="#0a1a2e"></a-box>
+      <!-- 팬 1 (회전) -->
+      <a-entity position="-0.12 0.15 0.28">
+        <a-cylinder height="0.02" radius="0.1" color="#1a2f4a"></a-cylinder>
+        <a-entity animation="property: rotation; to: 0 0 360; dur: 800; loop: true; easing: linear;">
+          <a-box position="0 0.015 0" width="0.18" height="0.02" depth="0.04" color="#00b4d8"></a-box>
+          <a-box position="0 0.015 0" width="0.04" height="0.02" depth="0.18" color="#00b4d8"></a-box>
+        </a-entity>
+      </a-entity>
+      <!-- 팬 2 (회전) -->
+      <a-entity position="0.12 0.15 0.28">
+        <a-cylinder height="0.02" radius="0.1" color="#1a2f4a"></a-cylinder>
+        <a-entity animation="property: rotation; to: 0 0 -360; dur: 1000; loop: true; easing: linear;">
+          <a-box position="0 0.015 0" width="0.18" height="0.02" depth="0.04" color="#90e0ef"></a-box>
+          <a-box position="0 0.015 0" width="0.04" height="0.02" depth="0.18" color="#90e0ef"></a-box>
+        </a-entity>
+      </a-entity>
+      <!-- 온도 표시 -->
+      <a-box position="0 -0.2 0.27" width="0.4" height="0.1" depth="0.01" color="#051020"></a-box>
+      <a-box id="temp-bar-3d" position="-0.08 -0.2 0.275" width="0.2" height="0.06" depth="0.01" color="#ff6b35" animation="property: scale; from: 1 1 1; to: 1.2 1 1; dur: 2000; loop: true; dir: alternate"></a-box>
+      <!-- COOL 표시 구 (파란 구슬) -->
+      <a-sphere position="-0.2 -0.35 0.27" radius="0.04" color="#00b4d8" material="emissive: #00b4d8; emissiveIntensity: 1;" animation="property: position; from: -0.2 -0.35 0.27; to: 0.2 -0.35 0.27; dur: 1500; loop: true; dir: alternate; easing: easeInOutSine;"></a-sphere>
+    </a-entity>
+
+    <!-- ── 네트워크 스위치 ── -->
+    <a-entity position="0.4 0 0.35">
+      <a-box width="0.6" height="0.18" depth="0.4" color="#080f1e"></a-box>
+      <a-box position="0 0.1 0.2" width="0.55" height="0.06" depth="0.02" color="#0a1628"></a-box>
+      <!-- 포트 LED 8개 -->
+      <a-entity position="-0.22 0.1 0.21">
+        <a-sphere radius="0.015" color="#00ff88" material="emissive: #00ff88;" position="0 0 0"    animation="property: material.emissiveIntensity; from: 0.5; to: 3; dur: 300; loop: true; dir: alternate"></a-sphere>
+        <a-sphere radius="0.015" color="#00b4d8" material="emissive: #00b4d8;" position="0.07 0 0" animation="property: material.emissiveIntensity; from: 0.5; to: 3; dur: 500; loop: true; dir: alternate"></a-sphere>
+        <a-sphere radius="0.015" color="#00ff88" material="emissive: #00ff88;" position="0.14 0 0" animation="property: material.emissiveIntensity; from: 0.5; to: 3; dur: 400; loop: true; dir: alternate"></a-sphere>
+        <a-sphere radius="0.015" color="#ff6b35" material="emissive: #ff6b35;" position="0.21 0 0" animation="property: material.emissiveIntensity; from: 0.5; to: 3; dur: 700; loop: true; dir: alternate"></a-sphere>
+        <a-sphere radius="0.015" color="#00ff88" material="emissive: #00ff88;" position="0.28 0 0" animation="property: material.emissiveIntensity; from: 0.5; to: 3; dur: 350; loop: true; dir: alternate"></a-sphere>
+        <a-sphere radius="0.015" color="#00b4d8" material="emissive: #00b4d8;" position="0.35 0 0" animation="property: material.emissiveIntensity; from: 0.5; to: 3; dur: 600; loop: true; dir: alternate"></a-sphere>
+        <a-sphere radius="0.015" color="#00ff88" material="emissive: #00ff88;" position="0.42 0 0" animation="property: material.emissiveIntensity; from: 0.5; to: 3; dur: 450; loop: true; dir: alternate"></a-sphere>
+      </a-entity>
+      <!-- 데이터 패킷 이동 -->
+      <a-sphere id="packet1" radius="0.02" color="#00b4d8" material="emissive: #00b4d8; emissiveIntensity: 2;" position="-0.3 0 0.2" animation="property: position; from: -0.3 0.05 0.2; to: 0.3 0.05 0.2; dur: 1200; loop: true; easing: linear;"></a-sphere>
+      <a-sphere id="packet2" radius="0.02" color="#00ff88" material="emissive: #00ff88; emissiveIntensity: 2;" position="0.3 0 -0.2" animation="property: position; from: 0.3 0.05 -0.2; to: -0.3 0.05 -0.2; dur: 900; loop: true; easing: linear;"></a-sphere>
+    </a-entity>
+
+    <!-- ── UPS 전력 장치 ── -->
+    <a-entity position="-0.7 0 0.4">
+      <a-box width="0.4" height="0.5" depth="0.35" color="#060d1a"></a-box>
+      <a-box position="0 0.26 0.18" width="0.35" height="0.05" depth="0.02" color="#1a2f4a"></a-box>
+      <!-- 전원 표시등 -->
+      <a-sphere position="0 0.26 0.19" radius="0.03" color="#00ff88" material="emissive: #00ff88; emissiveIntensity: 1.5;" animation="property: material.emissiveIntensity; from: 1; to: 3; dur: 2000; loop: true; dir: alternate"></a-sphere>
+      <!-- 전력 흐름 라인 -->
+      <a-box position="0 0.1 0.18" width="0.3" height="0.02" depth="0.01" color="#ff6b35" animation="property: material.opacity; from: 0.3; to: 1; dur: 500; loop: true; dir: alternate"></a-box>
+      <a-box position="0 0 0.18" width="0.3" height="0.02" depth="0.01" color="#ff6b35" animation="property: material.opacity; from: 1; to: 0.3; dur: 600; loop: true; dir: alternate"></a-box>
+      <a-box position="0 -0.1 0.18" width="0.3" height="0.02" depth="0.01" color="#ff6b35" animation="property: material.opacity; from: 0.5; to: 1; dur: 700; loop: true; dir: alternate"></a-box>
+    </a-entity>
+
+    <!-- ── AI 학습 시각화 패널 ── -->
+    <a-entity id="ai-panel" position="0 0.95 0" visible="false">
+      <!-- 패널 배경 -->
+      <a-plane width="2.8" height="0.5" color="#020818" opacity="0.95" side="double"></a-plane>
+      <!-- 4단계 표시 -->
+      <a-text value="[ 데이터 수집 → 전처리 → 학습 → 추론 ]" align="center" color="#00b4d8" width="2.6" font="mozillavr" position="0 0 0.01"></a-text>
+      <!-- 진행 바 -->
+      <a-box id="ai-progress" position="-1.3 -0.15 0.01" width="0.01" height="0.06" depth="0.01" color="#00b4d8"></a-box>
+    </a-entity>
+
+    <!-- ── 전체 데이터센터 느린 회전 (관람 효과) ── -->
+    <!-- 라벨 텍스트 -->
+    <a-text value="AI DATA CENTER" position="0 1.1 0" align="center" color="#00b4d8" width="3" font="mozillavr" opacity="0.8"></a-text>
+    <a-text value="DC-AR v1.0" position="0 -0.08 1.15" align="center" color="#1a4f8a" width="2" font="mozillavr" rotation="-90 0 0"></a-text>
+
+  </a-marker>
+
+  <a-entity camera></a-entity>
+</a-scene>
+
+<!-- ── AR UI 오버레이 ── -->
+<div id="ar-ui">
+  <!-- 상단 HUD -->
+  <div class="hud-top">
+    <div class="hud-title">DC-AR // AI DATACENTER</div>
+    <div class="hud-status">
+      <div class="status-dot"></div>
+      <span id="status-text">마커 탐색 중...</span>
+    </div>
+  </div>
+
+  <!-- 마커 스캔 안내 -->
+  <div id="scan-guide">
+    <div class="scan-frame">
+      <div class="scan-line"></div>
+    </div>
+    <div class="scan-text">HIRO 마커를 카메라에 비추세요</div>
+  </div>
+
+  <!-- 정보 FAB -->
+  <button class="info-fab" onclick="showPanel('info')">ℹ</button>
+
+  <!-- 온도 HUD -->
+  <div id="temp-hud">
+    <div class="temp-label">COOLANT TEMP</div>
+    <div class="temp-val" id="temp-val">42°C</div>
+    <div class="temp-bar-wrap">
+      <div class="temp-bar" id="temp-bar" style="width:42%"></div>
+    </div>
+  </div>
+
+  <!-- AI 학습 HUD -->
+  <div id="ai-hud">
+    <div class="ai-label">AI TRAINING PIPELINE</div>
+    <div class="ai-step" id="step-0"><div class="step-dot"></div>데이터 수집</div>
+    <div class="ai-step" id="step-1"><div class="step-dot"></div>전처리</div>
+    <div class="ai-step" id="step-2"><div class="step-dot"></div>모델 학습</div>
+    <div class="ai-step" id="step-3"><div class="step-dot"></div>추론 / 배포</div>
+  </div>
+
+  <!-- 하단 버튼 -->
+  <div class="hud-bottom">
+    <div class="btn-group">
+      <button class="ar-btn" onclick="onServer()"><span class="btn-icon">🖥</span>서버 클릭</button>
+      <button class="ar-btn" onclick="onTemp()"><span class="btn-icon">🌡</span>온도 제어</button>
+      <button class="ar-btn" onclick="onAI()"><span class="btn-icon">🤖</span>AI 학습</button>
+    </div>
+  </div>
+
+  <!-- 팝업 패널 -->
+  <div id="info-panel">
+    <button class="panel-close" onclick="closePanel()">✕</button>
+    <div class="panel-tag" id="panel-tag">SYSTEM INFO</div>
+    <div class="panel-title" id="panel-title">AI 데이터센터</div>
+    <div class="panel-desc" id="panel-desc">마커 위에 소환된 미니 AI 데이터센터입니다. 하단 버튼으로 각 시스템과 인터랙션해보세요.</div>
+  </div>
+
+  <!-- 토스트 -->
+  <div id="toast"></div>
+</div>
+
+<!-- 마커 다운로드 안내 -->
+<div id="marker-info" class="show">
+  <div style="font-family:'Space Mono',monospace; font-size:0.6rem; color:#00b4d8; letter-spacing:2px; margin-bottom:6px;">HIRO MARKER</div>
+  <div style="font-size:0.75rem; color:#adb5bd; line-height:1.5;">
+    마커를 출력하거나 화면에 띄우세요:<br>
+    <a href="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" target="_blank" style="color:#00b4d8;">▶ HIRO 마커 링크</a>
+  </div>
+</div>
+
+<script>
+// ── 전역 상태 ──
+let arStarted = false;
+let markerVisible = false;
+let tempInterval = null;
+let aiInterval = null;
+let currentTemp = 42;
+let tempMode = false;
+let aiMode = false;
+
+// ── 시작 ──
+function startAR() {
+  document.getElementById('splash').classList.add('hidden');
+  document.getElementById('ar-scene').style.display = 'block';
+  document.getElementById('ar-ui').classList.add('active');
+  arStarted = true;
+
+  // 마커 감지 이벤트
+  const marker = document.getElementById('main-marker');
+  marker.addEventListener('markerFound', () => {
+    markerVisible = true;
+    document.getElementById('scan-guide').style.display = 'none';
+    document.getElementById('status-text').textContent = '데이터센터 활성화 ✓';
+    showToast('🏗 AI 데이터센터 소환됨');
+    document.getElementById('marker-info').classList.remove('show');
+  });
+  marker.addEventListener('markerLost', () => {
+    markerVisible = false;
+    document.getElementById('scan-guide').style.display = 'block';
+    document.getElementById('status-text').textContent = '마커 탐색 중...';
+    hideAllHUD();
+  });
+
+  setTimeout(() => {
+    document.getElementById('splash').style.display = 'none';
+  }, 700);
+}
+
+// ── 인터랙션: 서버 클릭 ──
+function onServer() {
+  if (!markerVisible) { showToast('⚠ 먼저 HIRO 마커를 비추세요'); return; }
+  hideAllHUD();
+  showPanel('server');
+  // 랙 깜빡임 효과는 A-Frame 애니메이션이 이미 작동 중
+  showToast('📡 데이터 패킷 전송 중...');
+}
+
+// ── 인터랙션: 온도 제어 ──
+function onTemp() {
+  if (!markerVisible) { showToast('⚠ 먼저 HIRO 마커를 비추세요'); return; }
+  hideAllHUD();
+  tempMode = !tempMode;
+  if (tempMode) {
+    document.getElementById('temp-hud').classList.add('show');
+    startTempSim();
+    showToast('🌡 냉각 시스템 가동 중...');
+  }
+}
+
+function startTempSim() {
+  if (tempInterval) clearInterval(tempInterval);
+  tempInterval = setInterval(() => {
+    // 온도 오르락내리락
+    currentTemp += (Math.random() - 0.45) * 3;
+    currentTemp = Math.max(28, Math.min(75, currentTemp));
+    document.getElementById('temp-val').textContent = currentTemp.toFixed(1) + '°C';
+    const pct = ((currentTemp - 28) / 47) * 100;
+    document.getElementById('temp-bar').style.width = pct + '%';
+    // 고온 경고
+    if (currentTemp > 60) {
+      document.getElementById('temp-val').style.color = '#ff6b35';
+      showToast('🔥 고온 경고! 냉각 팬 증속 중');
+    } else {
+      document.getElementById('temp-val').style.color = '#fff';
+    }
+  }, 800);
+}
+
+// ── 인터랙션: AI 학습 ──
+function onAI() {
+  if (!markerVisible) { showToast('⚠ 먼저 HIRO 마커를 비추세요'); return; }
+  hideAllHUD();
+  document.getElementById('ai-hud').classList.add('show');
+  document.getElementById('ai-panel').setAttribute('visible', 'true');
+  runAIPipeline();
+  showToast('🤖 AI 학습 파이프라인 시작');
+}
+
+function runAIPipeline() {
+  if (aiInterval) clearInterval(aiInterval);
+  const steps = ['step-0','step-1','step-2','step-3'];
+  steps.forEach(s => {
+    const el = document.getElementById(s);
+    el.classList.remove('active','done');
+  });
+  let i = 0;
+  aiInterval = setInterval(() => {
+    if (i > 0) document.getElementById(steps[i-1]).classList.replace('active','done');
+    if (i < steps.length) {
+      document.getElementById(steps[i]).classList.add('active');
+      const labels = ['📦 데이터 수집 중...','⚙ 전처리 중...','🧠 모델 학습 중...','🚀 추론 배포 중...'];
+      showToast(labels[i]);
+      i++;
+    } else {
+      clearInterval(aiInterval);
+      showToast('✅ AI 학습 완료!');
+      setTimeout(() => {
+        document.getElementById('ai-panel').setAttribute('visible', 'false');
+      }, 3000);
+    }
+  }, 2000);
+}
+
+// ── 패널 ──
+const panelData = {
+  info: {
+    tag: 'SYSTEM INFO',
+    title: 'AI 데이터센터',
+    desc: '마커 위에 소환된 미니 AI 데이터센터. 서버 랙 3기, 냉각 유닛, 네트워크 스위치, UPS 전력 장치로 구성되어 있습니다.'
+  },
+  server: {
+    tag: 'SERVER RACK',
+    title: '서버 랙 시스템',
+    desc: '19인치 표준 서버 랙 3기가 운영 중입니다. LED는 CPU 부하를 나타내며, 파란색 패킷이 서버 간 데이터를 전송합니다.'
+  },
+};
+
+function showPanel(type) {
+  const d = panelData[type] || panelData.info;
+  document.getElementById('panel-tag').textContent = d.tag;
+  document.getElementById('panel-title').textContent = d.title;
+  document.getElementById('panel-desc').textContent = d.desc;
+  const panel = document.getElementById('info-panel');
+  panel.style.display = 'block';
+  requestAnimationFrame(() => panel.classList.add('show'));
+}
+
+function closePanel() {
+  const panel = document.getElementById('info-panel');
+  panel.classList.remove('show');
+  setTimeout(() => panel.style.display = 'none', 300);
+}
+
+function hideAllHUD() {
+  document.getElementById('temp-hud').classList.remove('show');
+  document.getElementById('ai-hud').classList.remove('show');
+  if (tempInterval) { clearInterval(tempInterval); tempMode = false; }
+  closePanel();
+}
+
+// ── 토스트 ──
+let toastTimer = null;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>
