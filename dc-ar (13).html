@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no"/>
+<title>DC-AR</title>
+<script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+<script src="https://raw.githack.com/AR-js-org/AR.js/master/aframe/build/aframe-ar.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#020818;color:#fff;font-family:sans-serif;overflow:hidden}
+#splash{position:fixed;inset:0;z-index:9999;background:linear-gradient(135deg,#020818,#041430);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px}
+.logo{font-size:3.5rem;font-weight:900;background:linear-gradient(135deg,#00b4d8,#0077b6);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.sub{color:#90e0ef;letter-spacing:3px;font-size:.9rem}
+.desc{color:#aaa;text-align:center;line-height:1.8;font-size:.85rem;padding:0 20px}
+.mbox{width:100px;height:100px;border:2px solid #00b4d8;display:flex;align-items:center;justify-content:center}
+.hiro{width:82px;height:82px;background:#fff;display:flex;align-items:center;justify-content:center}
+.hi{width:50px;height:50px;background:#000;display:flex;align-items:center;justify-content:center}
+.hx{width:22px;height:22px;background:#fff;clip-path:polygon(40% 0%,60% 0%,60% 40%,100% 40%,100% 60%,60% 60%,60% 100%,40% 100%,40% 60%,0% 60%,0% 40%,40% 40%)}
+.mlbl{font-size:.55rem;color:#00b4d8;letter-spacing:2px}
+#startBtn{padding:13px 44px;background:transparent;border:2px solid #00b4d8;color:#00b4d8;font-size:1rem;font-weight:700;letter-spacing:3px;cursor:pointer;touch-action:manipulation}
+#startBtn:active{background:#00b4d8;color:#000}
+#arsc{display:none;position:fixed;inset:0;z-index:10}
+/* UI - 모두 fixed, z-index 높게 */
+#topbar{position:fixed;top:0;left:0;right:0;z-index:500;padding:10px 14px;background:linear-gradient(180deg,rgba(0,0,0,.85),transparent);display:none;justify-content:space-between;align-items:center}
+#topbar.on{display:flex}
+.ttl{font-size:.65rem;color:#00b4d8;letter-spacing:3px}
+.tst{display:flex;align-items:center;gap:6px;font-size:.6rem;color:#90e0ef}
+.dot{width:7px;height:7px;border-radius:50%;background:#00ff88;animation:blink 1.5s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+#sg{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:500;text-align:center;display:none}
+#sg.on{display:block}
+.sf{width:150px;height:150px;border:2px solid rgba(0,180,216,.6);border-radius:6px;margin:0 auto 10px;position:relative}
+.sl{position:absolute;left:4px;right:4px;height:2px;background:linear-gradient(90deg,transparent,#00b4d8,transparent);animation:sl 2s ease-in-out infinite}
+@keyframes sl{0%{top:4px;opacity:0}10%{opacity:1}90%{opacity:1}100%{top:calc(100% - 6px);opacity:0}}
+.st{font-size:.64rem;color:#90e0ef;letter-spacing:2px}
+/* 배너 */
+#banner{position:fixed;top:48px;left:50%;transform:translateX(-50%);z-index:500;background:rgba(0,0,0,.7);border:1px solid rgba(0,180,216,.5);border-radius:20px;padding:5px 15px;font-size:.68rem;color:#00b4d8;letter-spacing:1px;display:none;white-space:nowrap}
+/* 오버레이 */
+#ov{position:fixed;top:48px;right:8px;z-index:500;width:50vw;max-width:200px;background:rgba(2,8,24,.92);border:1px solid rgba(0,180,216,.45);border-radius:8px;padding:9px 11px;display:none}
+.otag{font-size:.48rem;color:#00b4d8;letter-spacing:2px;margin-bottom:3px;font-family:monospace}
+.otit{font-size:.8rem;font-weight:700;color:#fff;margin-bottom:5px}
+.obod{font-size:.7rem;color:#90e0ef;line-height:1.7}
+.mb{margin:3px 0}
+.mbt{display:flex;justify-content:space-between;font-size:.65rem;color:#adb5bd;margin-bottom:2px}
+.mbb{height:5px;background:rgba(255,255,255,.1);border-radius:3px}
+.mbf{height:100%;border-radius:3px;width:0;transition:width .7s ease}
+/* AI 흐름 */
+#flow{position:fixed;top:48px;left:8px;z-index:500;width:44vw;max-width:175px;background:rgba(2,8,24,.92);border:1px solid rgba(0,255,136,.3);border-radius:8px;padding:9px 11px;display:none}
+.ftag{font-size:.48rem;color:#00ff88;letter-spacing:2px;margin-bottom:5px;font-family:monospace}
+.fst{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:.72rem;color:#333;border-bottom:1px solid rgba(255,255,255,.04);transition:color .3s}
+.fst:last-child{border:none}
+.fst.act{color:#00b4d8}
+.fst.don{color:#00ff88}
+.fst.brk{color:#ff6b35;text-decoration:line-through}
+.fdot{width:6px;height:6px;border-radius:50%;background:currentColor;flex-shrink:0}
+/* 세부 버튼 행 */
+#arow{position:fixed;bottom:84px;left:0;right:0;z-index:500;padding:0 7px 4px;display:none}
+.albl{font-size:.5rem;color:#00b4d8;letter-spacing:2px;margin-bottom:4px;padding-left:2px}
+.abtns{display:flex;gap:5px;overflow-x:auto;-webkit-overflow-scrolling:touch}
+.abtns::-webkit-scrollbar{display:none}
+.dbtn{flex-shrink:0;padding:8px 12px;background:rgba(0,0,0,.75);border:1.5px solid rgba(0,180,216,.5);color:#90e0ef;font-size:.7rem;font-weight:700;border-radius:4px;cursor:pointer;white-space:nowrap;touch-action:manipulation;-webkit-tap-highlight-color:transparent}
+.dbtn:active{background:rgba(0,180,216,.3);color:#00b4d8}
+.dbtn.d{border-color:rgba(255,107,53,.5);color:#ff9966}
+.dbtn.d:active{background:rgba(255,107,53,.25);color:#ff6b35}
+.dbtn.g{border-color:rgba(0,255,136,.4);color:#66ffaa}
+.dbtn.g:active{background:rgba(0,255,136,.2);color:#00ff88}
+/* 하단 버튼 */
+#bot{position:fixed;bottom:0;left:0;right:0;z-index:500;padding:7px 7px 13px;background:linear-gradient(0deg,rgba(0,0,0,.92),transparent);display:none}
+#bot.on{display:block}
+.bgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:5px}
+.mbtn{padding:9px 4px;background:rgba(0,0,0,.75);border:1.5px solid rgba(0,180,216,.5);color:#90e0ef;font-size:.7rem;font-weight:700;border-radius:4px;text-align:center;touch-action:manipulation;-webkit-tap-highlight-color:transparent;cursor:pointer}
+.mbtn:active,.mbtn.sel{background:rgba(0,180,216,.28);border-color:#00b4d8;color:#00b4d8}
+/* 토스트 */
+#toast{position:fixed;top:55px;left:50%;transform:translateX(-50%);z-index:600;background:rgba(0,180,216,.22);border:1px solid rgba(0,180,216,.6);color:#00b4d8;font-size:.6rem;letter-spacing:1px;padding:6px 15px;border-radius:20px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .3s}
+#toast.on{opacity:1}
+</style>
+</head>
+<body>
+
+<div id="splash">
+  <div class="logo">DC-AR</div>
+  <div class="sub">내 방 위의 AI 데이터센터</div>
+  <p class="desc">HIRO 마커를 카메라에 비추면<br>미니 AI 데이터센터가 소환됩니다</p>
+  <div class="mbox"><div class="hiro"><div class="hi"><div class="hx"></div></div></div></div>
+  <div class="mlbl">▲ HIRO MARKER</div>
+  <button id="startBtn">▶ AR 시작</button>
+</div>
+
+<a-scene id="arsc" embedded arjs="sourceType:webcam;debugUIEnabled:false;" vr-mode-ui="enabled:false" renderer="antialias:true;">
+  <a-marker preset="hiro" id="mk" smooth="true">
+    <a-box position="0 -0.02 0" width="3.2" height="0.04" depth="2.2" color="#051428"></a-box>
+    <a-entity position="-1.1 0 -0.6">
+      <a-box width="0.35" height="0.9" depth="0.55" color="#0a1628"></a-box>
+      <a-box id="led1a" position="0 0.3 0.295" width="0.25" height="0.03" depth="0.01" color="#00b4d8" animation="property:material.opacity;from:1;to:0.2;dur:800;loop:true;dir:alternate"></a-box>
+      <a-box id="led1b" position="0 0.1 0.295" width="0.25" height="0.03" depth="0.01" color="#00ff88" animation="property:material.opacity;from:0.2;to:1;dur:600;loop:true;dir:alternate"></a-box>
+      <a-sphere id="top1" position="0 0.47 0.295" radius="0.025" color="#00ff88" material="emissive:#00ff88;" animation="property:material.emissiveIntensity;from:0.5;to:2;dur:1000;loop:true;dir:alternate"></a-sphere>
+    </a-entity>
+    <a-entity position="-0.65 0 -0.6">
+      <a-box width="0.35" height="0.9" depth="0.55" color="#0a1628"></a-box>
+      <a-box id="led2a" position="0 0.3 0.295" width="0.25" height="0.03" depth="0.01" color="#00ff88" animation="property:material.opacity;from:0.3;to:1;dur:500;loop:true;dir:alternate"></a-box>
+      <a-box id="led2b" position="0 0.05 0.295" width="0.25" height="0.03" depth="0.01" color="#00b4d8" animation="property:material.opacity;from:1;to:0.2;dur:900;loop:true;dir:alternate"></a-box>
+      <a-sphere id="top2" position="0 0.47 0.295" radius="0.025" color="#ff6b35" material="emissive:#ff6b35;" animation="property:material.emissiveIntensity;from:0.5;to:2;dur:800;loop:true;dir:alternate"></a-sphere>
+    </a-entity>
+    <a-entity position="-0.2 0 -0.6">
+      <a-box width="0.35" height="0.9" depth="0.55" color="#0a1628"></a-box>
+      <a-box id="led3a" position="0 0.25 0.295" width="0.25" height="0.04" depth="0.01" color="#00b4d8" animation="property:material.opacity;from:1;to:0.1;dur:400;loop:true;dir:alternate"></a-box>
+      <a-box id="led3b" position="0 0.05 0.295" width="0.25" height="0.04" depth="0.01" color="#00ff88" animation="property:material.opacity;from:0.5;to:1;dur:750;loop:true;dir:alternate"></a-box>
+    </a-entity>
+    <a-entity position="0.4 0 -0.55">
+      <a-box width="0.6" height="0.8" depth="0.5" color="#081220"></a-box>
+      <a-entity position="-0.12 0.15 0.28"><a-cylinder height="0.02" radius="0.1" color="#1a2f4a"></a-cylinder><a-entity animation="property:rotation;to:0 0 360;dur:800;loop:true;easing:linear;"><a-box position="0 0.015 0" width="0.18" height="0.02" depth="0.04" color="#00b4d8"></a-box><a-box position="0 0.015 0" width="0.04" height="0.02" depth="0.18" color="#00b4d8"></a-box></a-entity></a-entity>
+      <a-entity position="0.12 0.15 0.28"><a-cylinder height="0.02" radius="0.1" color="#1a2f4a"></a-cylinder><a-entity animation="property:rotation;to:0 0 -360;dur:1000;loop:true;easing:linear;"><a-box position="0 0.015 0" width="0.18" height="0.02" depth="0.04" color="#90e0ef"></a-box><a-box position="0 0.015 0" width="0.04" height="0.02" depth="0.18" color="#90e0ef"></a-box></a-entity></a-entity>
+      <a-sphere id="cool" position="-0.18 -0.28 0.27" radius="0.05" color="#00b4d8" material="emissive:#00b4d8;emissiveIntensity:1;" animation="property:position;from:-0.18 -0.28 0.27;to:0.18 -0.28 0.27;dur:1500;loop:true;dir:alternate;easing:easeInOutSine;"></a-sphere>
+    </a-entity>
+    <a-entity position="0.4 0 0.35">
+      <a-box width="0.6" height="0.18" depth="0.4" color="#080f1e"></a-box>
+      <a-sphere id="port1" position="-0.2 0.1 0.21" radius="0.015" color="#00ff88" material="emissive:#00ff88;" animation="property:material.emissiveIntensity;from:0.5;to:3;dur:300;loop:true;dir:alternate"></a-sphere>
+      <a-sphere id="port2" position="-0.13 0.1 0.21" radius="0.015" color="#00b4d8" material="emissive:#00b4d8;" animation="property:material.emissiveIntensity;from:0.5;to:3;dur:500;loop:true;dir:alternate"></a-sphere>
+      <a-sphere id="pkt1" radius="0.022" color="#00b4d8" material="emissive:#00b4d8;emissiveIntensity:2;" animation="property:position;from:-0.28 0.05 0.2;to:0.28 0.05 0.2;dur:1200;loop:true;easing:linear;"></a-sphere>
+    </a-entity>
+    <a-entity position="-0.7 0 0.4">
+      <a-box width="0.4" height="0.5" depth="0.35" color="#060d1a"></a-box>
+      <a-sphere id="upsled" position="0 0.26 0.19" radius="0.03" color="#00ff88" material="emissive:#00ff88;emissiveIntensity:1.5;" animation="property:material.emissiveIntensity;from:1;to:3;dur:2000;loop:true;dir:alternate"></a-sphere>
+      <a-text value="UPS" position="0 -0.28 0.18" align="center" color="#ff6b35" width="1" font="mozillavr"></a-text>
+    </a-entity>
+    <a-entity position="1.1 0 0.4">
+      <a-box width="0.5" height="0.45" depth="0.7" color="#0c1a0c"></a-box>
+      <a-sphere id="genled" position="0 -0.1 0.375" radius="0.03" color="#00ff88" material="emissive:#00ff88;emissiveIntensity:1.5;" animation="property:material.emissiveIntensity;from:1;to:3;dur:1500;loop:true;dir:alternate"></a-sphere>
+      <a-text value="GEN" position="0 -0.28 0.37" align="center" color="#00ff88" width="1" font="mozillavr"></a-text>
+    </a-entity>
+    <a-sphere radius="0.025" color="#ff6b35" material="emissive:#ff6b35;emissiveIntensity:2;" animation="property:position;from:1.1 0.07 0.4;to:-0.7 0.07 0.4;dur:1800;loop:true;easing:linear;"></a-sphere>
+    <a-sphere radius="0.025" color="#ffdd00" material="emissive:#ffdd00;emissiveIntensity:2;" animation="property:position;from:-0.7 0.07 0.4;to:-0.7 0.07 -0.6;dur:1400;loop:true;easing:linear;"></a-sphere>
+    <a-entity id="airing" visible="false" position="0 1.1 0"><a-torus radius="0.28" radius-tubular="0.02" color="#00b4d8" material="emissive:#00b4d8;emissiveIntensity:1;" animation="property:rotation;to:0 360 0;dur:2500;loop:true;easing:linear;"></a-torus></a-entity>
+    <a-sphere id="aiball" visible="false" radius="0.06" color="#00b4d8" material="emissive:#00b4d8;emissiveIntensity:2;" animation="property:position;from:-0.8 0.8 0;to:0.8 0.8 0;dur:2000;loop:true;dir:alternate;easing:easeInOutSine;"></a-sphere>
+    <a-text value="AI DATA CENTER" position="0 1.1 0" align="center" color="#00b4d8" width="3" font="mozillavr" opacity="0.7"></a-text>
+  </a-marker>
+  <a-entity camera></a-entity>
+</a-scene>
+
+<div id="topbar"><div class="ttl">DC-AR // AI DATACENTER</div><div class="tst"><div class="dot"></div><span id="stxt">마커 탐색 중...</span></div></div>
+<div id="sg"><div class="sf"><div class="sl"></div></div><div class="st">HIRO 마커를 카메라에 비추세요</div></div>
+<div id="banner"></div>
+<div id="ov"><div class="otag" id="otag"></div><div class="otit" id="otit"></div><div class="obod" id="obod"></div></div>
+<div id="flow"><div class="ftag">AI PIPELINE</div><div class="fst" id="fs0"><div class="fdot"></div>데이터 수집</div><div class="fst" id="fs1"><div class="fdot"></div>전처리</div><div class="fst" id="fs2"><div class="fdot"></div>모델 학습</div><div class="fst" id="fs3"><div class="fdot"></div>추론/배포</div></div>
+<div id="arow"><div class="albl" id="albl">세부 액션</div><div class="abtns" id="abtns"></div></div>
+<div id="bot"><div class="bgrid">
+  <button class="mbtn" id="b1">🖥 서버</button>
+  <button class="mbtn" id="b2">🌡 온도</button>
+  <button class="mbtn" id="b3">🤖 AI학습</button>
+  <button class="mbtn" id="b4">⚡ 전력</button>
+  <button class="mbtn" id="b5">🔌 케이블</button>
+</div></div>
+<div id="toast"></div>
+
+<script>
+// ── 전역 변수 ──
+var tTmr=null, aiTmr=null, aiRunning=false, aiStep=0, tempTmr=null, pwrTmr=null;
+
+// ── 헬퍼 ──
+function G(id){return document.getElementById(id);}
+
+function toast(m){
+  var t=G('toast');
+  t.textContent=m; t.classList.add('on');
+  if(tTmr)clearTimeout(tTmr);
+  tTmr=setTimeout(function(){t.classList.remove('on');},2500);
+}
+
+function showBanner(t){var b=G('banner');b.textContent=t;b.style.display='block';}
+function hideBanner(){G('banner').style.display='none';}
+
+function showOv(tag,tit,html){
+  G('otag').textContent=tag;
+  G('otit').textContent=tit;
+  G('obod').innerHTML=html;
+  G('ov').style.display='block';
+  setTimeout(function(){
+    document.querySelectorAll('.mbf[data-w]').forEach(function(e){
+      e.style.width=e.getAttribute('data-w')+'%';
+    });
+  },80);
+}
+function hideOv(){G('ov').style.display='none';}
+
+function showFlow(){G('flow').style.display='block';}
+function hideFlow(){G('flow').style.display='none';}
+
+function setFS(i,cls){
+  for(var j=0;j<4;j++){
+    var e=G('fs'+j);
+    e.classList.remove('act','don','brk');
+    if(j<i) e.classList.add('don');
+    else if(j===i) e.classList.add(cls||'act');
+  }
+}
+function resetFS(){for(var i=0;i<4;i++)G('fs'+i).classList.remove('act','don','brk');}
+
+function mb(lbl,pct,col){
+  return '<div class="mb"><div class="mbt"><span>'+lbl+'</span><span style="color:'+col+';font-weight:700;">'+pct+'%</span></div>'
+    +'<div class="mbb"><div class="mbf" data-w="'+pct+'" style="background:'+col+'"></div></div></div>';
+}
+
+function setLED(id,col){var e=G(id);if(e)e.setAttribute('color',col);}
+function setEm(id,col){var e=G(id);if(e)e.setAttribute('material','emissive:'+col+';emissiveIntensity:2;');}
+
+function openRow(lbl,btns){
+  G('albl').textContent=lbl;
+  var w=G('abtns');
+  w.innerHTML='';
+  for(var i=0;i<btns.length;i++){
+    (function(b){
+      var el=document.createElement('button');
+      el.className='dbtn'+(b.c?' '+b.c:'');
+      el.textContent=b.l;
+      el.onclick=b.fn;
+      w.appendChild(el);
+    })(btns[i]);
+  }
+  G('arow').style.display='block';
+}
+function closeRow(){G('arow').style.display='none';}
+
+function selBtn(id){
+  ['b1','b2','b3','b4','b5'].forEach(function(b){G(b).classList.remove('sel');});
+  if(id)G(id).classList.add('sel');
+}
+
+function stopAI(){
+  if(aiTmr){clearTimeout(aiTmr);aiTmr=null;}
+  aiRunning=false;
+  try{G('airing').setAttribute('visible','false');}catch(e){}
+  try{G('aiball').setAttribute('visible','false');}catch(e){}
+}
+
+function resetAll(){
+  if(tempTmr){clearInterval(tempTmr);tempTmr=null;}
+  if(pwrTmr){clearInterval(pwrTmr);pwrTmr=null;}
+  stopAI(); hideOv(); hideFlow(); hideBanner(); closeRow();
+  setLED('led1a','#00b4d8'); setLED('led1b','#00ff88');
+  setLED('led2a','#00ff88'); setLED('led2b','#00b4d8');
+  setLED('led3a','#00b4d8'); setLED('led3b','#00ff88');
+}
+
+// ── AR 시작 ──
+G('startBtn').onclick = function(){
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    alert('Chrome 또는 Safari를 사용하세요.');return;
+  }
+  navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'}})
+    .then(function(s){
+      s.getTracks().forEach(function(t){t.stop();});
+      G('splash').style.display='none';
+      G('arsc').style.display='block';
+      G('topbar').classList.add('on');
+      G('sg').classList.add('on');
+      G('bot').classList.add('on');
+      function bind(){
+        var mk=G('mk');
+        if(!mk){setTimeout(bind,300);return;}
+        mk.addEventListener('markerFound',function(){
+          G('sg').classList.remove('on');
+          G('stxt').textContent='데이터센터 활성화 ✓';
+          toast('🏗 AI 데이터센터 소환됨');
+        });
+        mk.addEventListener('markerLost',function(){
+          G('sg').classList.add('on');
+          G('stxt').textContent='마커 탐색 중...';
+        });
+      }
+      var sc=G('arsc');
+      if(sc.hasLoaded){bind();}
+      else{sc.addEventListener('loaded',bind);setTimeout(bind,1500);}
+    })
+    .catch(function(e){alert('카메라 오류: '+e.message);});
+};
+
+// ── 버튼 이벤트 (onclick 직접) ──
+G('b1').onclick = function(){
+  resetAll(); selBtn('b1'); showBanner('🖥 SERVER MODE');
+  openRow('서버 제어',[
+    {l:'📊 CPU 부하',c:'',fn:function(){
+      var a=Math.round(55+Math.random()*30),b=Math.round(40+Math.random()*40),c=Math.round(60+Math.random()*25);
+      setLED('led1a',a>80?'#ff6b35':'#00b4d8');
+      setLED('led2a',b>80?'#ff6b35':'#00ff88');
+      setLED('led3a',c>80?'#ff6b35':'#00b4d8');
+      showOv('CPU STATUS','CPU 부하 분석',mb('Rack A',a,a>80?'#ff6b35':'#00b4d8')+mb('Rack B',b,b>80?'#ff6b35':'#00ff88')+mb('Rack C',c,c>80?'#ff6b35':'#00b4d8'));
+      toast(a>80?'⚠ 과부하! LED 적색':'✅ CPU 정상');
+    }},
+    {l:'💾 메모리',c:'',fn:function(){
+      var u=Math.round(60+Math.random()*25);
+      setLED('led1b',u>85?'#ff6b35':'#00ff88');
+      showOv('MEMORY','메모리 현황',mb('RAM 사용률',u,u>85?'#ff6b35':'#00b4d8')+'<div style="margin-top:4px;font-size:.65rem;color:#adb5bd;">여유: '+Math.round(512*(1-u/100))+'GB</div>');
+      toast('💾 메모리 '+(u>85?'⚠ 부족':'✅ 정상'));
+    }},
+    {l:'🌐 네트워크',c:'',fn:function(){
+      var i=(Math.random()*8+1).toFixed(1),o=(Math.random()*6+0.5).toFixed(1);
+      showOv('NETWORK','네트워크 I/O','<div style="display:flex;gap:10px;margin-bottom:5px;"><div><div style="font-size:.55rem;color:#00b4d8;">IN</div><div>'+i+' Gbps</div></div><div><div style="font-size:.55rem;color:#ff6b35;">OUT</div><div>'+o+' Gbps</div></div></div>'+mb('대역폭',Math.round((parseFloat(i)+parseFloat(o))/20*100),'#00b4d8'));
+      toast('🌐 네트워크 분석 완료');
+    }},
+    {l:'🔄 재시작',c:'d',fn:function(){
+      ['led1a','led1b','led2a','led2b','led3a','led3b'].forEach(function(id){setLED(id,'#333');});
+      showBanner('🔄 재시작 중...');
+      showOv('RESTART','재부팅','<div style="color:#ff6b35;">3...</div>');
+      var n=3,t=setInterval(function(){
+        n--;
+        if(n>0){G('obod').innerHTML='<div style="color:#ff6b35;">'+n+'...</div>';}
+        else{
+          clearInterval(t);
+          setLED('led1a','#00b4d8');setLED('led1b','#00ff88');setLED('led2a','#00ff88');setLED('led3a','#00b4d8');
+          showBanner('✅ 재시작 완료');
+          G('obod').innerHTML='<div style="color:#00ff88;">✅ 재부팅 완료</div>';
+          toast('✅ 서버 정상 가동!');
+        }
+      },1000);
+    }},
+  ]);
+  toast('🖥 서버 연결됨');
+};
+
+G('b2').onclick = function(){
+  resetAll(); selBtn('b2'); showBanner('🌡 THERMAL MODE');
+  var tv=42;
+  function upd(){
+    tv+=(Math.random()-.45)*3; tv=Math.max(28,Math.min(75,tv));
+    var col=tv>60?'#ff6b35':tv>50?'#ffdd00':'#00b4d8';
+    var cool=G('cool'); if(cool)cool.setAttribute('color',col);
+    showOv('THERMAL','냉각 시스템','<div style="font-size:1rem;font-weight:700;color:'+col+';">'+tv.toFixed(1)+'°C</div>'+mb('온도',Math.round((tv-28)/47*100),col)+'<div style="font-size:.65rem;color:#adb5bd;margin-top:3px;">팬: '+Math.round(50+(tv-28)/47*50)+'%</div>');
+    if(tv>60)toast('🔥 고온 경고!');
+  }
+  upd(); tempTmr=setInterval(upd,1200);
+  openRow('냉각 제어',[
+    {l:'🌬 팬 증속',c:'',fn:function(){tv=Math.max(28,tv-8);toast('🌬 팬 증속 — 온도 하강 중');}},
+    {l:'❄ 팬 감속',c:'',fn:function(){tv=Math.min(75,tv+5);toast('❄ 팬 감속 — 절전 모드');}},
+    {l:'💧 냉각수',c:'',fn:function(){
+      showOv('COOLANT','냉각수',mb('잔량',78,'#00b4d8')+'<div style="font-size:.65rem;color:#00ff88;margin-top:3px;">유량: '+(12+Math.random()*3).toFixed(1)+' L/min ✅</div>');
+      toast('💧 냉각수 정상');
+    }},
+    {l:'🚨 긴급냉각',c:'d',fn:function(){
+      tv=Math.max(28,tv-20);
+      var cool=G('cool'); if(cool){cool.setAttribute('color','#00ffff');cool.setAttribute('material','emissive:#00ffff;emissiveIntensity:3;');}
+      showBanner('🚨 긴급 냉각!');
+      showOv('EMERGENCY','긴급 냉각',mb('팬 A',100,'#ff6b35')+mb('팬 B',100,'#ff6b35')+'<div style="font-size:.65rem;color:#ffdd00;margin-top:3px;">예상 -15°C / 120초</div>');
+      toast('🚨 긴급 냉각 가동!');
+    }},
+  ]);
+  toast('🌡 냉각 연결됨');
+};
+
+G('b3').onclick = function(){
+  resetAll(); selBtn('b3'); showBanner('🤖 AI TRAINING'); showFlow(); resetFS();
+  openRow('AI 파이프라인',[
+    {l:'▶ 학습 시작',c:'g',fn:function(){
+      if(aiRunning){toast('이미 학습 중');return;}
+      aiRunning=true; aiStep=0;
+      try{G('airing').setAttribute('visible','true');}catch(e){}
+      try{G('aiball').setAttribute('visible','true');}catch(e){}
+      var steps=['데이터 수집','전처리','모델 학습','추론/배포'];
+      var cols=['#90e0ef','#00b4d8','#00ff88','#ffdd00'];
+      function run(){
+        if(!aiRunning||aiStep>=4){
+          if(aiStep>=4){
+            showBanner('✅ AI 학습 완료!');
+            showOv('COMPLETE','학습 완료!',mb('Accuracy',94,'#00ff88')+mb('Loss',6,'#00b4d8')+'<div style="font-size:.65rem;color:#00ff88;margin-top:3px;">✅ 모델 배포 완료</div>');
+            toast('✅ 학습 완료!'); stopAI();
+          }
+          return;
+        }
+        setFS(aiStep,'act');
+        showBanner('🤖 '+steps[aiStep]+' 중...');
+        setLED('led1a',cols[aiStep]); setLED('led2a',cols[aiStep]); setLED('led3a',cols[aiStep]);
+        showOv('STEP '+(aiStep+1)+'/4',steps[aiStep],mb('진행률',Math.round((aiStep+1)/4*100),'#00b4d8'));
+        toast('→ '+steps[aiStep]);
+        aiStep++; aiTmr=setTimeout(run,2500);
+      }
+      run();
+    }},
+    {l:'⏸ 학습 중단',c:'d',fn:function(){
+      if(!aiRunning){toast('학습 중이 아님');return;}
+      if(aiTmr){clearTimeout(aiTmr);aiTmr=null;} aiRunning=false;
+      setLED('led1a','#ff6b35'); setLED('led2a','#ff6b35'); setLED('led3a','#ff6b35');
+      if(aiStep>0)setFS(aiStep-1,'brk');
+      try{G('aiball').setAttribute('visible','false');}catch(e){}
+      showBanner('⏸ 학습 중단 — '+aiStep+'/4단계');
+      showOv('PAUSED','학습 중단','<div style="color:#ff6b35;margin-bottom:4px;">⚠ '+['데이터 수집','전처리','모델 학습','추론'][Math.max(0,aiStep-1)]+' 단계에서 중단</div><div style="font-size:.65rem;color:#adb5bd;">체크포인트 저장됨<br>▶ 학습 시작으로 재개</div>');
+      toast('⏸ 중단 — LED 적색');
+    }},
+    {l:'📊 현재 상태',c:'',fn:function(){
+      showOv('STATUS','학습 현황',mb('Loss',Math.round(20+Math.random()*30),'#ff6b35')+mb('Accuracy',Math.round(70+Math.random()*20),'#00ff88')+'<div style="font-size:.65rem;color:#adb5bd;margin-top:3px;">lr:0.001 | epoch:'+Math.round(aiStep*12)+'</div>');
+      toast('📊 현재 상태');
+    }},
+    {l:'🔄 초기화',c:'d',fn:function(){
+      stopAI(); resetFS(); showBanner('🔄 초기화 완료');
+      showOv('RESET','초기화','<div style="color:#ffdd00;">파이프라인 초기화됨</div>');
+      toast('🔄 초기화 완료');
+    }},
+  ]);
+  toast('🤖 AI 연결됨');
+};
+
+G('b4').onclick = function(){
+  resetAll(); selBtn('b4'); showBanner('⚡ POWER MODE');
+  var load=4.2;
+  function upd(){
+    load+=(Math.random()-.45)*.4; load=Math.max(3,Math.min(9,load));
+    var col=load>7?'#ff6b35':load>5?'#ffdd00':'#00ff88';
+    setEm('upsled',load>7?'#ff6b35':'#00ff88');
+    showOv('POWER','전력 현황',mb('소비전력',Math.round(load/9*100),col)+'<div style="font-size:.65rem;color:#adb5bd;margin-top:3px;">'+load.toFixed(1)+'kW | PUE:'+(1.2+load/90).toFixed(2)+'</div>');
+  }
+  upd(); pwrTmr=setInterval(upd,1200);
+  openRow('전력 제어',[
+    {l:'🔋 UPS',c:'',fn:function(){
+      var ch=Math.round(88+Math.random()*10);
+      setEm('upsled',ch>90?'#00ff88':'#ffdd00');
+      showOv('UPS','UPS 상태',mb('배터리',ch,ch>90?'#00ff88':'#ffdd00')+'<div style="font-size:.65rem;color:#adb5bd;margin-top:3px;">백업:'+Math.round(ch*.18)+'분</div>');
+      toast('🔋 UPS '+ch+'%');
+    }},
+    {l:'⚖ 부하분산',c:'',fn:function(){
+      showOv('BALANCE','부하 분산',mb('회로 A',68,'#00b4d8')+mb('회로 B',42,'#00ff88')+mb('회로 C',31,'#90e0ef'));
+      toast('⚖ 부하 분산 최적화');
+    }},
+    {l:'🌿 절전',c:'g',fn:function(){
+      load=Math.max(3,load-1.5);
+      setEm('upsled','#00ff88'); setEm('genled','#00ff88');
+      showBanner('🌿 절전 모드');
+      showOv('ECO','절전 모드',mb('절감률',28,'#00ff88')+'<div style="font-size:.65rem;color:#00ff88;margin-top:3px;">월 약 87,000원 절약</div>');
+      toast('🌿 절전 — LED 녹색');
+    }},
+    {l:'⚡ 풀파워',c:'d',fn:function(){
+      load=Math.min(9,load+2);
+      setEm('upsled','#ff6b35'); setEm('genled','#ff6b35');
+      showBanner('⚡ 풀 파워!');
+      showOv('FULL','풀 파워',mb('출력',98,'#ff6b35')+'<div style="font-size:.65rem;color:#ffdd00;margin-top:3px;">⚠ 소비 8.4kW</div>');
+      toast('⚡ 풀파워 — LED 적색');
+    }},
+  ]);
+  toast('⚡ 전력 연결됨');
+};
+
+G('b5').onclick = function(){
+  resetAll(); selBtn('b5'); showBanner('🔌 CABLE MODE');
+  openRow('케이블 진단',[
+    {l:'🔍 자동진단',c:'',fn:function(){
+      var steps=['배선 연속성...','신호 측정...','절연 저항...'],i=0;
+      showOv('SCAN','자동 진단',steps[0]);
+      var t=setInterval(function(){
+        i++;
+        if(i<steps.length){G('obod').innerHTML=steps[i];}
+        else{
+          clearInterval(t);
+          setEm('port2','#ff6b35');
+          showOv('RESULT','진단 완료','<div style="color:#00ff88;margin-bottom:3px;">✅ 정상: 4개</div><div style="color:#ff6b35;">⚠ 비상전력 신호 저하<br>포트 LED 적색 확인</div>');
+          toast('🔍 이상 감지!');
+        }
+      },900);
+    }},
+    {l:'🔧 케이블교체',c:'d',fn:function(){
+      setTimeout(function(){
+        setEm('port2','#00ff88');
+        showOv('FIXED','교체 완료','<div style="color:#00ff88;">✅ 교체 완료<br>포트 LED 녹색 복구</div>');
+        toast('🔧 교체 완료!');
+      },1500);
+    }},
+    {l:'📡 신호측정',c:'',fn:function(){
+      showOv('SIGNAL','신호 강도',mb('발전기→UPS',97,'#00ff88')+mb('UPS→Rack',94,'#00b4d8')+mb('비상전력',38,'#ff6b35'));
+      toast('📡 측정 완료');
+    }},
+    {l:'✅ 점검완료',c:'g',fn:function(){
+      showOv('REPORT','점검 완료','<div style="font-size:.68rem;color:#adb5bd;line-height:1.8;">정상:4개 | 이상:1개<br>'+new Date().toLocaleString('ko-KR')+'</div>');
+      toast('✅ 보고서 저장됨');
+    }},
+  ]);
+  toast('🔌 케이블 연결됨');
+};
+</script>
+</body>
+</html>
