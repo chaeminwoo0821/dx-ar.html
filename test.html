@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no"/>
+<title>DC-AR 버튼 테스트</title>
+<style>
+body { background:#020818; color:#fff; font-family:sans-serif; margin:0; padding:20px; }
+h2 { color:#00b4d8; margin-bottom:20px; }
+.btn {
+  display:block; width:100%; padding:16px;
+  margin-bottom:12px; font-size:1rem; font-weight:700;
+  background:rgba(0,180,216,.15); border:2px solid #00b4d8;
+  color:#00b4d8; border-radius:6px; cursor:pointer;
+  -webkit-tap-highlight-color:transparent;
+  touch-action:manipulation;
+}
+.btn:active { background:#00b4d8; color:#000; }
+#log {
+  margin-top:20px; padding:14px;
+  background:rgba(0,180,216,.08); border:1px solid rgba(0,180,216,.3);
+  border-radius:6px; font-size:.9rem; color:#90e0ef;
+  min-height:60px; line-height:1.8;
+}
+</style>
+</head>
+<body>
+<h2>🖥 DC-AR 버튼 테스트</h2>
+<p style="color:#aaa;margin-bottom:20px;font-size:.85rem;">버튼을 눌러서 아래 로그에 텍스트가 뜨는지 확인하세요</p>
+
+<button class="btn" id="b1">🖥 서버 클릭</button>
+<button class="btn" id="b2">🌡 온도 제어</button>
+<button class="btn" id="b3">🤖 AI 학습</button>
+<button class="btn" id="b4">⚡ 전력 현황</button>
+<button class="btn" id="b5">🔌 케이블 점검</button>
+
+<div id="log">여기에 버튼 누른 결과가 표시됩니다...</div>
+
+<script>
+function log(msg) {
+  var d = new Date();
+  var t = d.getHours()+':'+d.getMinutes()+':'+d.getSeconds();
+  document.getElementById('log').innerHTML =
+    '[' + t + '] ' + msg + '<br>' +
+    document.getElementById('log').innerHTML;
+}
+
+function addBtn(id, msg) {
+  var el = document.getElementById(id);
+  if (!el) { log('❌ ' + id + ' 버튼을 찾을 수 없음'); return; }
+  el.addEventListener('touchend', function(e) {
+    e.preventDefault();
+    log('✅ touchend: ' + msg);
+  }, { passive: false });
+  el.addEventListener('click', function() {
+    log('✅ click: ' + msg);
+  });
+}
+
+addBtn('b1', '서버 클릭');
+addBtn('b2', '온도 제어');
+addBtn('b3', 'AI 학습');
+addBtn('b4', '전력 현황');
+addBtn('b5', '케이블 점검');
+
+log('페이지 로드 완료 — 버튼을 눌러보세요');
+</script>
+</body>
+</html>
